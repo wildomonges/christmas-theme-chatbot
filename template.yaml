@@ -1,0 +1,268 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Chatbot resource definition
+
+Globals:
+  Function:   
+    MemorySize: 256
+    Runtime: ruby3.2
+    Tracing: Active
+    Timeout: 15
+    Tags:
+      Env: !Ref Env
+      Service: !Ref Service
+      Version: !Ref Version
+    Environment:
+      Variables:
+        CONNECTIONS_TABLE: !Ref connectionsTable
+    Layers:
+      - !Ref sharedLayer
+  
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+  Service:
+    Type: String
+    Default: christmas-theme-chatbot
+  Version:
+    Type: String
+    Default: '0.1.0'
+
+Resources:
+
+  ####################
+  # Websocket API
+  ####################
+  
+  webSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${Service}-${Env}-websocket-api"
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  webSocketApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${webSocketApi}/${Env}"
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: !Ref Env
+      Description: !Sub "${Env} stage"
+      DeploymentId: !Ref Deployment
+      ApiId: !Ref webSocketApi
+      AccessLogSettings:
+        DestinationArn: !GetAtt webSocketApiLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod", "routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength"}'
+
+  Deployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+    - connectRoute
+    - sendMessageRoute
+    - disconnectRoute
+    Properties:
+      ApiId: !Ref webSocketApi
+
+  ###################
+  # Routes
+  ###################
+
+  connectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref webSocketApi
+      RouteKey: $connect
+      OperationName: connectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref connectIntegration
+
+  connectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref webSocketApi
+      Description: Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${onConnectHandler.Arn}/invocations"
+
+  disconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref webSocketApi
+      RouteKey: $disconnect
+      OperationName: disconnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref disconnectIntegration
+
+  disconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref webSocketApi
+      Description: Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${onDisconnectHandler.Arn}/invocations"
+
+  sendMessageRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref webSocketApi
+      RouteKey: sendMessage
+      OperationName: sendMessageRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref sendMessageIntegration
+
+  sendMessageIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref webSocketApi
+      Description: Send Message Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${sendMessageHandler.Arn}/invocations"
+
+  
+  ####################
+  # Layers
+  ####################
+
+  sharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: shared
+      Description: Layer to share code and dependencies
+      ContentUri: app/layers/shared/shared.zip
+      CompatibleRuntimes:
+        - ruby3.2
+      RetentionPolicy: Delete
+  
+  ####################
+  # Functions
+  ####################
+
+  onConnectHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/on_connect/
+      Description: Handle new connections to the websocket
+      Handler: handler.ChristmasThemeChatbot::Functions::OnConnect.handler
+      FunctionName: !Sub "${Service}-${Env}-on-connect-handler"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref connectionsTable
+        - Statement:
+          - Effect: Allow
+            Action: dynamodb:ListTables
+            Resource: '*'
+
+  onDisconnectHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/on_disconnect/
+      Description: Handle disconnect for existing connections
+      Handler: handler.ChristmasThemeChatbot::Functions::OnDisconnect.handler
+      FunctionName: !Sub "${Service}-${Env}-on-disconnect-handler"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref connectionsTable
+        - Statement:
+          - Effect: Allow
+            Action: dynamodb:ListTables
+            Resource: '*'
+
+  sendMessageHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/send_message/
+      Description: Handle the message received from the client side and forward to Bedrock
+      Handler: handler.ChristmasThemeChatbot::Functions::SendMessage.handler
+      FunctionName: !Sub "${Service}-${Env}-send-message-handler"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref connectionsTable
+        - Statement:
+          - Effect: Allow
+            Action: 'bedrock:*'
+            Resource: '*'
+        - Statement:
+          - Effect: Allow
+            Action: 
+              - 'execute-api:ManageConnections'
+              - 'dynamodb:ListTables'
+            Resource: "*"
+
+  ###################
+  # Function Permissions
+  ###################
+  onConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - webSocketApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref onConnectHandler
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${webSocketApi}/${Env}/$connect"
+
+  onDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - webSocketApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref onDisconnectHandler
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${webSocketApi}/${Env}/$disconnect"
+
+  sendMessagePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - webSocketApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref sendMessageHandler
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${webSocketApi}/${Env}/sendMessage"
+
+  ###################
+  # Roles
+  ###################
+  webSocketLoggingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Action: 'sts:AssumeRole'
+          Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs'
+
+  ###################
+  # Dynamodb
+  ###################
+
+  connectionsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Sub "${Service}-${Env}-connections-table"
+      PrimaryKey:
+        Name: connectionId
+        Type: String
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  webSocketApiUrl:
+    Description: WSS protocol
+    Value:  !Join [ '', [ 'wss://', !Ref webSocketApi, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'Stage'] ]
