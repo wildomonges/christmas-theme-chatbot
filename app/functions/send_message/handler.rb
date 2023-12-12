@@ -41,7 +41,7 @@ module ChristmasThemeChatbot
         private
 
         ACT_AS_SANTA_CLOUS = 'Act as a Santa Clous which is a friently person who loves to talk about Christmas holiday'
-        MODEL_ID = 'meta.llama2-13b-chat-v1'
+        MODEL_ID = 'anthropic.claude-v2'
 
         def client
           @client ||= Aws::BedrockRuntime::Client.new
