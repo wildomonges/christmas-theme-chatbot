@@ -1,10 +1,24 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-.bundle
-vendor
-.env
-samconfig.toml
-app/layers/shared/shared.zip
-app/layers/shared/ruby/gems
+# dependencies
+/frontend/chatbot/node_modules
+/frontend/chatbot/.pnp
+/frontend/chatbot/.pnp.js
 
-.aws-sam
+# testing
+/frontend/chatbot/coverage
+
+# production
+/frontend/chatbot/build
+
+
+# Backend
+/backend/.bundle
+/backend/vendor
+/backend/.env
+/backend/samconfig.toml
+/backend/app/layers/shared/shared.zip
+/backend/app/layers/shared/ruby/gems
+
+/backend/.aws-sam
 .vscode
