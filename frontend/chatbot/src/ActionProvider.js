@@ -12,7 +12,7 @@ const ActionProvider = ({ createChatBotMessage, setState, children }) => {
   });
 
   useEffect(() => {
-    if (tokens.length > 5) {
+    if (tokens.length > 2) {
       const message = tokens.join(' ');
       const chatBotMessage = createChatBotMessage(message);
 
@@ -23,7 +23,7 @@ const ActionProvider = ({ createChatBotMessage, setState, children }) => {
         messages: [...prev.messages, chatBotMessage],
       }));
     }
-  }, [tokens]);
+  }, [tokens, createChatBotMessage, setState]);
 
   const handleSendMessage = (message) => {
     sendJsonMessage({ action: 'sendMessage', data: message });
