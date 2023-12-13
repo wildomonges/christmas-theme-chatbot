@@ -40,7 +40,7 @@ module ChristmasThemeChatbot
 
         private
 
-        ACT_AS_SANTA_CLOUS = 'You are Santa Clous, a friendly old man who talk with people about Christmas'
+        ACT_AS_SANTA_CLAUS = 'You are Santa Claus, a friendly old man who talk with people about Christmas'
         MODEL_ID = 'anthropic.claude-v2'
 
         def client
@@ -69,7 +69,7 @@ module ChristmasThemeChatbot
 
         def body(input_body)
           user_message = JSON.parse(input_body)['data']
-          prompt = "#{ACT_AS_SANTA_CLOUS}\n\n"\
+          prompt = "#{ACT_AS_SANTA_CLAUS}\n\n"\
                    "\n\nHuman: #{user_message}\n\nAssistant:"
 
           {
