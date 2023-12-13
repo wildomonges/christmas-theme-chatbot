@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import useWebSocket from 'react-use-websocket';
 
 const ActionProvider = ({ createChatBotMessage, setState, children }) => {
-  const socketUrl = 'wss://n6n7punoyj.execute-api.us-east-1.amazonaws.com/dev/';
+  const socketUrl = process.env.REACT_APP_WEBSOCKET_ENDPOINT;
   const [tokens, setTokens] = useState('');
 
   const { sendJsonMessage } = useWebSocket(socketUrl, {

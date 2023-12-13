@@ -5,6 +5,8 @@
 /frontend/chatbot/.pnp
 /frontend/chatbot/.pnp.js
 
+/frontend/chatbot/.env
+
 # testing
 /frontend/chatbot/coverage
 
