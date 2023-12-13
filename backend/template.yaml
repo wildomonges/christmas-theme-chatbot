@@ -7,7 +7,7 @@ Globals:
     MemorySize: 256
     Runtime: ruby3.2
     Tracing: Active
-    Timeout: 15
+    Timeout: 25
     Tags:
       Env: !Ref Env
       Service: !Ref Service

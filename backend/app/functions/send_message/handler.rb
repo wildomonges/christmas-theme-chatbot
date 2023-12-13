@@ -58,7 +58,7 @@ module ChristmasThemeChatbot
 
           event_stream_handler = Aws::BedrockRuntime::EventStreams::ResponseStream.new
           event_stream_handler.on_chunk_event do |response_event|
-            chunk_response = JSON.parse(response_event.bytes)['generation']
+            chunk_response = JSON.parse(response_event.bytes)['completion']
             print chunk_response
 
             websocket(endpoint).post_to_connection(data: chunk_response, connection_id: connection.connectionId)
