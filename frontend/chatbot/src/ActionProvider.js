@@ -12,7 +12,7 @@ const ActionProvider = ({ createChatBotMessage, setState, children }) => {
   });
 
   useEffect(() => {
-    if (tokens.length > 10) {
+    if (tokens.length > 5) {
       const message = tokens.join(' ');
       const chatBotMessage = createChatBotMessage(message);
 

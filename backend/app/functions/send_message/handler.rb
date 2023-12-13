@@ -40,7 +40,7 @@ module ChristmasThemeChatbot
 
         private
 
-        ACT_AS_SANTA_CLOUS = 'Act as a Santa Clous which is a friently person who loves to talk about Christmas holiday'
+        ACT_AS_SANTA_CLOUS = 'You are Santa Clous, a friendly old man who talk with people about Christmas'
         MODEL_ID = 'anthropic.claude-v2'
 
         def client
@@ -48,7 +48,7 @@ module ChristmasThemeChatbot
         end
 
         def websocket(endpoint)
-          @websocket ||= Aws::ApiGatewayManagementApi::Client.new(endpoint:)
+          @websocket ||= Aws::ApiGatewayManagementApi::Client.new(endpoint: endpoint)
         end
 
         def callback(connection_id, endpoint)
@@ -68,13 +68,13 @@ module ChristmasThemeChatbot
         end
 
         def body(input_body)
-          prompt = JSON.parse(input_body)['data']
+          user_message = JSON.parse(input_body)['data']
+          prompt = "#{ACT_AS_SANTA_CLOUS}\n\n"\
+                   "\n\nHuman: #{user_message}\n\nAssistant:"
 
           {
-            prompt: prompt || ACT_AS_SANTA_CLOUS,
-            temperature: 0.5,
-            top_p: 0.9,
-            max_gen_len: 250
+            prompt: prompt,
+            max_tokens_to_sample: 300
           }
         end
       end
