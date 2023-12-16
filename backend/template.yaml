@@ -28,6 +28,9 @@ Parameters:
   Service:
     Type: String
     Default: christmas-theme-chatbot
+  AccessToken:
+    Type: String
+    Default: token
   PullMessagesBatchSize:
     Type: Number
     Default: 10
@@ -83,8 +86,6 @@ Resources:
   connectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      AuthorizationType: CUSTOM
-      AuthorizerId: !Ref auth
       ApiId: !Ref webSocketApi
       RouteKey: $connect
       OperationName: connectRoute
@@ -155,30 +156,6 @@ Resources:
       RetentionPolicy: Delete
 
   ####################
-  # Authorizer
-  ####################
-  
-  lambdaRequestAuthHandler:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: app/functions/authorizer/
-      Description: Handle authorization to the websocket api
-      Handler: handler.ChristmasThemeChatbot::Functions::Authorizer.handler
-      FunctionName: !Sub "${Service}-${Env}-authorizer-handler"
-
-  auth:
-    Type: AWS::ApiGatewayV2::Authorizer
-    Properties:
-      Name: !Sub "${Service}-${Env}-authorizer"
-      ApiId: !Ref webSocketApi
-      AuthorizerType: REQUEST
-      AuthorizerUri:
-        Fn::Sub:
-          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaRequestAuthHandler.Arn}/invocations
-      IdentitySource:
-        - "route.request.header.Authorization"
-
-  ####################
   # Functions
   ####################
 
@@ -222,6 +199,7 @@ Resources:
       Environment:
         Variables:
           MESSAGES_QUEUE: !Ref messagesQueue
+          ACCESS_TOKEN: !Ref AccessToken
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref connectionsTable
@@ -293,9 +271,10 @@ Resources:
             BatchSize: !Ref PullGiftsBatchSize
             MaximumBatchingWindowInSeconds: !Ref MaximumBatchingWindowInSeconds
 
-  ###################
+  #######################
   # Function Permissions
-  ###################
+  #######################
+
   onConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:

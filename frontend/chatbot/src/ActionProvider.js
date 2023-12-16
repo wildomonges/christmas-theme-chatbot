@@ -26,7 +26,13 @@ const ActionProvider = ({ createChatBotMessage, setState, children }) => {
   }, [tokens, createChatBotMessage, setState]);
 
   const handleSendMessage = (message) => {
-    sendJsonMessage({ action: 'sendMessage', data: message });
+    // workaround to send the accessToken to the websocket api
+    // because useWebSocket does not support Authorization header
+    const data = {
+      message: message,
+      accessToken: process.env.REACT_APP_ACCESS_TOKEN,
+    };
+    sendJsonMessage({ action: 'sendMessage', data: JSON.stringify(data) });
   };
 
   return (

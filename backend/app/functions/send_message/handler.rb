@@ -18,15 +18,31 @@ module ChristmasThemeChatbot
         include ChristmasThemeChatbot::Layers::Shared::Services
 
         def handler(event:, context:)
-          user_message = JSON.parse(event['body'])['data']
-          prompt = build_prompt(user_message).to_json
-
-          request_context = event['requestContext']
-
-          connection_id = request_context['connectionId']
-          endpoint = "https://#{request_context['domainName']}/#{request_context['stage']}"
-
           Logger.instance.info("Handle sendMessage. Event: #{event.to_json}")
+
+          data = JSON.parse(JSON.parse(event['body'])['data'])
+          access_token = data['accessToken']
+          request_context = event['requestContext']
+          endpoint = "https://#{request_context['domainName']}/#{request_context['stage']}"
+          connection_id = request_context['connectionId']
+
+          if access_token != ENV['ACCESS_TOKEN']
+            Logger.instance.info('Access unauthorized')
+            
+            Connection.find(connection_id).delete
+            Logger.instance.info("Connection #{connection_id} deleted!")
+
+            websocket(endpoint).delete_connection(connection_id: connection_id)
+
+            return { statusCode: 401, body: 'Unauthorized'}
+          end
+
+          # Continue execution
+          user_message = data['message']
+          prompt = build_prompt(user_message).to_json
+         
+          
+
           Logger.instance.info("ConnectionId: #{connection_id}")
           Logger.instance.info("Invoking bedrock with prompt: #{prompt}")
 
