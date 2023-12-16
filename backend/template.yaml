@@ -83,6 +83,8 @@ Resources:
   connectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref auth
       ApiId: !Ref webSocketApi
       RouteKey: $connect
       OperationName: connectRoute
@@ -151,7 +153,31 @@ Resources:
       CompatibleRuntimes:
         - ruby3.2
       RetentionPolicy: Delete
+
+  ####################
+  # Authorizer
+  ####################
   
+  lambdaRequestAuthHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/authorizer/
+      Description: Handle authorization to the websocket api
+      Handler: handler.ChristmasThemeChatbot::Functions::Authorizer.handler
+      FunctionName: !Sub "${Service}-${Env}-authorizer-handler"
+
+  auth:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: !Sub "${Service}-${Env}-authorizer"
+      ApiId: !Ref webSocketApi
+      AuthorizerType: REQUEST
+      AuthorizerUri:
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaRequestAuthHandler.Arn}/invocations
+      IdentitySource:
+        - "route.request.header.Authorization"
+
   ####################
   # Functions
   ####################
