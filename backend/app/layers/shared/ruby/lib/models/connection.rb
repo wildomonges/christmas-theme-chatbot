@@ -18,6 +18,8 @@ module ChristmasThemeChatbot
           table name: ENV['CONNECTIONS_TABLE']
 
           field :connectionId
+
+          validates_presence_of :connectionId
         end
       end
     end

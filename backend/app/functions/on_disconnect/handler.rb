@@ -21,6 +21,10 @@ module ChristmasThemeChatbot
           Logger.instance.info("Connection #{connection_id} deleted")
 
           { statusCode: 204, body: '' }
+        rescue StandardError => e
+          Logger.instance.error(e.message)
+
+          { statusCode: 500, body: 'We are sorry but something wrong happened! Try again later' }
         end
       end
     end

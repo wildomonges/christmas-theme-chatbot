@@ -20,6 +20,8 @@ module ChristmasThemeChatbot
           field :connectionId
           field :username
           field :gift
+
+          validates_presence_of :connectionId, :username, :gift
         end
       end
     end

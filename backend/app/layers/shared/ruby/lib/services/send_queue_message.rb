@@ -13,6 +13,9 @@ module ChristmasThemeChatbot
 
           attr_reader :sqs, :message, :queue_url
 
+          # Construct the object  
+          # @param queue_url [String] The URL of the queue.
+          # @param message [String] The contents of the message to be sent.
           def initialize(message:, queue_url:)
             @sqs = Aws::SQS::Client.new
 
@@ -21,10 +24,8 @@ module ChristmasThemeChatbot
           end
 
           # Send message
-          # @param queue_url [String] The URL of the queue.
-          # @param message [String] The contents of the message to be sent.
           # @return [Hash] including message_id, sequence_number and fields mentioned here
-          # https://docs.aws.amazon.com/sdk-for-ruby/v2/api/Aws/SQS/Client.html#send_message-instance_method
+          # https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/SQS/Client.html#send_message-instance_method
           def call
             return if queue_url.nil?
 

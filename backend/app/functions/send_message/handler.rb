@@ -41,6 +41,10 @@ module ChristmasThemeChatbot
           SendQueueMessage.new(message: { message: user_message, connection_id: connection_id }.to_json, queue_url: ENV['MESSAGES_QUEUE']).call
 
           { statusCode: 200, body: 'Success' }
+        rescue StandardError => e
+          Logger.instance.error(e.message)
+          
+          { statusCode: 500, body: 'We are sorry but something wrong happened! Try again later'}
         end
 
         private
