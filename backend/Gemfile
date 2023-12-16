@@ -6,6 +6,7 @@ ruby '>= 3.2.2'
 
 gem 'aws-sdk-apigatewaymanagementapi'
 gem 'aws-sdk-bedrockruntime'
+gem 'aws-sdk-sqs'
 gem 'bigdecimal'
 gem 'dotenv'
 gem 'dynamoid'

@@ -19,7 +19,7 @@
 /backend/vendor
 /backend/.env
 /backend/samconfig.toml
-#/backend/app/layers/shared/shared.zip
+/backend/app/layers/shared/shared.zip
 /backend/app/layers/shared/ruby/gems
 
 /backend/.aws-sam

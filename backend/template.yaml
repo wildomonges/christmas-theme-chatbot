@@ -7,7 +7,7 @@ Globals:
     MemorySize: 256
     Runtime: ruby3.2
     Tracing: Active
-    Timeout: 25
+    Timeout:  25
     Tags:
       Env: !Ref Env
       Service: !Ref Service
@@ -22,9 +22,18 @@ Parameters:
   Env:
     Type: String
     Default: dev
+  MaximumBatchingWindowInSeconds:
+    Type: Number
+    Default: 20
   Service:
     Type: String
     Default: christmas-theme-chatbot
+  PullMessagesBatchSize:
+    Type: Number
+    Default: 10
+  PullGiftsBatchSize:
+    Type: Number
+    Default: 10
   Version:
     Type: String
     Default: '0.1.0'
@@ -184,9 +193,14 @@ Resources:
       Description: Handle the message received from the client side and forward to Bedrock
       Handler: handler.ChristmasThemeChatbot::Functions::SendMessage.handler
       FunctionName: !Sub "${Service}-${Env}-send-message-handler"
+      Environment:
+        Variables:
+          MESSAGES_QUEUE: !Ref messagesQueue
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref connectionsTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt messagesQueue.QueueName
         - Statement:
           - Effect: Allow
             Action: 'bedrock:*'
@@ -197,6 +211,61 @@ Resources:
               - 'execute-api:ManageConnections'
               - 'dynamodb:ListTables'
             Resource: "*"
+
+  messageAnalyzerHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/message_analyzer/
+      Description: Handle the message received from the client side and extract toy information
+      Handler: handler.ChristmasThemeChatbot::Functions::MessageAnalyzer.handler
+      FunctionName: !Sub "${Service}-${Env}-message-analyzer-handler"
+      Timeout: 600 # 10 min
+      Environment:
+        Variables:
+          GIFTS_QUEUE: !Ref giftsQueue
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt messagesQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt giftsQueue.QueueName
+        - Statement:
+          - Effect: Allow
+            Action: 'bedrock:*'
+            Resource: '*'
+      Events:
+        PullMessages:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt messagesQueue.Arn
+            BatchSize: !Ref PullMessagesBatchSize
+            MaximumBatchingWindowInSeconds: !Ref MaximumBatchingWindowInSeconds
+
+  giftRegistrationHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: app/functions/gift_registration/
+      Description: Handle the gifts requested by childs and insert into dynamodb
+      Handler: handler.ChristmasThemeChatbot::Functions::GiftRegistration.handler
+      FunctionName: !Sub "${Service}-${Env}-gift-registration-handler"
+      Environment:
+        Variables:
+          GIFTS_TABLE: !Ref giftsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref giftsTable
+        - Statement:
+          - Effect: Allow
+            Action: dynamodb:ListTables
+            Resource: '*'
+        - SQSPollerPolicy:
+            QueueName: !GetAtt messagesQueue.QueueName
+      Events:
+        PullGifts:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt giftsQueue.Arn
+            BatchSize: !Ref PullGiftsBatchSize
+            MaximumBatchingWindowInSeconds: !Ref MaximumBatchingWindowInSeconds
 
   ###################
   # Function Permissions
@@ -261,6 +330,49 @@ Resources:
         Type: String
       SSESpecification:
         SSEEnabled: true
+
+  giftsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: !Sub "${Service}-${Env}-gifts-table"
+      AttributeDefinitions:
+        - 
+          AttributeName: 'connectionId'
+          AttributeType: S
+        - 
+          AttributeName: 'username'
+          AttributeType: S
+      KeySchema:
+        - 
+          AttributeName: 'connectionId'
+          KeyType: HASH
+        - 
+          AttributeName: 'username'
+          KeyType: RANGE
+      Tags:
+        - Key: Env
+          Value: !Ref Env
+        - Key: Service
+          Value: !Ref Service
+        - Key: Version
+          Value: !Ref Version
+
+  ##################
+  # SQS
+  ##################
+  messagesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Service}-${Env}-messages-queue"
+      MessageRetentionPeriod: 86400 # seconds = 24 hours
+      VisibilityTimeout: 3600
+
+  giftsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Service}-${Env}-gift-queue"
+      MessageRetentionPeriod: 86400 # seconds = 24 hours
 
 Outputs:
   webSocketApiUrl:

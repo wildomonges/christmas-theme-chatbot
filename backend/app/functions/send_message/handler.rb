@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+require 'dotenv/load'
 require 'aws-sdk-apigatewaymanagementapi'
 require 'aws-sdk-bedrockruntime'
 
 require 'models/connection'
 require 'services/logger'
+require 'services/send_queue_message'
 
 module ChristmasThemeChatbot
   module Functions
@@ -16,7 +18,8 @@ module ChristmasThemeChatbot
         include ChristmasThemeChatbot::Layers::Shared::Services
 
         def handler(event:, context:)
-          prompt = body(event['body']).to_json
+          user_message = JSON.parse(event['body'])['data']
+          prompt = build_prompt(user_message).to_json
 
           request_context = event['requestContext']
 
@@ -34,6 +37,8 @@ module ChristmasThemeChatbot
             accept: 'application/json',
             event_stream_handler: callback(connection_id, endpoint)
           )
+
+          SendQueueMessage.new(message: { message: user_message, connection_id: connection_id }.to_json, queue_url: ENV['MESSAGES_QUEUE']).call
 
           { statusCode: 200, body: 'Success' }
         end
@@ -67,8 +72,7 @@ module ChristmasThemeChatbot
           event_stream_handler
         end
 
-        def body(input_body)
-          user_message = JSON.parse(input_body)['data']
+        def build_prompt(user_message)
           prompt = "#{ACT_AS_SANTA_CLAUS}\n\n"\
                    "\n\nHuman: #{user_message}\n\nAssistant:"
 
