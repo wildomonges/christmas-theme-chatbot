@@ -38,7 +38,7 @@ At the `backend` it uses `AWS Bedrock` with the [Anthropic Claude V2](https://aw
 
 ### Architecture Diagram
 
-![Architecture Diagram](https://lucid.app/publicSegments/view/24b07842-3659-4852-9d5e-06bcc7a6b5ae/image.png)
+![Architecture Diagram](https://lucid.app/publicSegments/view/c3c8b3fd-a6a0-4b57-95af-06f1c0a3d6dc/image.png)
 
 ### Technologies
 
