@@ -116,7 +116,7 @@ If you want to try the Chatbot, use the next [link](https://main.d84kg9vv2z5z9.a
 ![Chatbot](./chatbot.png)
 ### Article
 
-Comming soon!
+https://dev.to/wildomonges/building-a-christmas-themed-chatbot-my-serverlessguru-hackathon-journey-3ojg
 
 ## Development
 
@@ -180,7 +180,9 @@ by `AWS Amplify`.
 Once logged into the `docker container`, run the following `commands` 
 
 ```
-aws configure 
+aws configure
+bundle install
+bundle exec rake chatbot:build_layer
 sam validate -t template.yaml --lint
 sam build
 sam deploy --guided
